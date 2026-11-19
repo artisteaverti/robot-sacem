@@ -1,0 +1,32 @@
+name: Robot Sacem
+
+on:
+  repository_dispatch:
+    types: [sacem]
+  workflow_dispatch:
+    inputs:
+      commande: { description: "id de commande", required: true }
+      action: { description: "remplir | signer | payer", required: true, default: "remplir" }
+      dry_run: { description: "1 = ne rien envoyer à la Sacem", required: true, default: "1" }
+
+concurrency:
+  group: sacem-${{ github.event.client_payload.commande || github.event.inputs.commande }}
+  cancel-in-progress: false
+
+jobs:
+  robot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm i playwright@1 && npx playwright install --with-deps chromium
+      - name: Lancer le robot
+        env:
+          ROBOT_CLE: ${{ secrets.ROBOT_CLE }}
+          SITE: https://artisteaverti.fr
+          COMMANDE: ${{ github.event.client_payload.commande || github.event.inputs.commande }}
+          ACTION: ${{ github.event.client_payload.action || github.event.inputs.action }}
+          DRY_RUN: ${{ github.event.client_payload.dry_run || github.event.inputs.dry_run || '1' }}
+        run: node robot.mjs
